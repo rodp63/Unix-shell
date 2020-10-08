@@ -90,7 +90,6 @@ void manageHistory(char **args)
         printf ("%c", c);
         c = fgetc(h);
       }
-      fclose(h);
     }
     else if(!strcmp(args[1], "-c"))
     {
@@ -100,6 +99,7 @@ void manageHistory(char **args)
     {
       printf("[!] Invalid syntax");
     }
+    fclose(h);
   }
 }
 
