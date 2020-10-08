@@ -8,6 +8,7 @@
 
 #define MAX_LINE 80
 #define MAX_ARGS 40
+#define HISTORY_PATH ".history"
 
 int p_wait;
 int in_file, out_file;
@@ -72,6 +73,36 @@ void checkFlags(char **args)
   }
 }
 
+void manageHistory(char **args)
+{
+  FILE* h = fopen(HISTORY_PATH, "r");
+  if(h == NULL)
+  {
+    printf("History file not found\n");
+  }
+  else
+  {
+    if(args[1] == NULL)
+    {
+      char c = fgetc(h);
+      while(c != EOF)
+      {
+        printf ("%c", c);
+        c = fgetc(h);
+      }
+      fclose(h);
+    }
+    else if(!strcmp(args[1], "-c"))
+    {
+      remove(HISTORY_PATH);
+    }
+    else
+    {
+      printf("[!] Invalid syntax");
+    }
+  }
+}
+
 void execute(char **args)
 {
   if(execvp(args[0], args) < 0)
@@ -79,6 +110,13 @@ void execute(char **args)
     printf("[!] Command not found\n");
     exit(1);
   }
+}
+
+void saveCommand(char *command)
+{
+  FILE* h = fopen(HISTORY_PATH, "a+");
+  fprintf(h, "%s", command);
+  rewind(h);
 }
 
 int main(void)
@@ -178,35 +216,40 @@ int main(void)
     
     if(!alert && should_run)
     {
-      if(fork() == 0)
-      {
-        if(pipe_ind != -1)
-        {
-          pipe(pipech);
-          if(fork() == 0)
-          {
-            saved_out = dup(1);
-            dup2(pipech[1], 1);
-            close(pipech[0]);
-            execute(argsp1);
-          }
-          else
-          {
-            wait(NULL);
-            saved_in = dup(0);
-            dup2(pipech[0], 0);
-            close(pipech[1]);
-            execute(argsp2);
-          }
-        }
-        else
-          execute(args);
-      }
+      if(!strcmp(args[0], "history")) manageHistory(args);
       else
       {
-        if(p_wait) wait(NULL);
+        if(fork() == 0)
+        {
+          if(pipe_ind != -1)
+          {
+            pipe(pipech);
+            if(fork() == 0)
+            {
+              saved_out = dup(1);
+              dup2(pipech[1], 1);
+              close(pipech[0]);
+              execute(argsp1);
+            }
+            else
+            {
+              wait(NULL);
+              saved_in = dup(0);
+              dup2(pipech[0], 0);
+              close(pipech[1]);
+              execute(argsp2);
+            }
+          }
+          else
+            execute(args);
+        }
+        else
+        {
+          if(p_wait) wait(NULL);
+        }
       }
       strcpy(last_command, command);
+      saveCommand(command);
       history = 1;
     }
     dup2(saved_out, 1);
