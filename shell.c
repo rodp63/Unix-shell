@@ -6,6 +6,11 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
+/*
+  Compilar con: gcc shell.c -o shell
+  Ejecutar con: ./shell
+*/
+
 #define MAX_LINE 80
 #define MAX_ARGS 40
 #define HISTORY_PATH ".history"
@@ -15,6 +20,7 @@ int in_file, out_file;
 int saved_in, saved_out;
 int in, out;
 int pipe_ind;
+int save_c;
 
 void parseInput(char *command, char **args)
 {
@@ -78,7 +84,7 @@ void manageHistory(char **args)
   FILE* h = fopen(HISTORY_PATH, "r");
   if(h == NULL)
   {
-    printf("History file not found\n");
+    printf("The history is empty\n");
   }
   else
   {
@@ -93,6 +99,7 @@ void manageHistory(char **args)
     }
     else if(!strcmp(args[1], "-c"))
     {
+      save_c = 0;
       remove(HISTORY_PATH);
     }
     else
@@ -140,6 +147,7 @@ int main(void)
     alert = 0;
     out_file = in_file = -1;
     pipe_ind = -1;
+    save_c = 1;
 
     strcpy(parse_command, command);
     parseInput(parse_command, args);
@@ -219,6 +227,13 @@ int main(void)
       if(!strcmp(args[0], "history")) manageHistory(args);
       else
       {
+        if(!strcmp(args[0], "stop") || !strcmp(args[0], "continue"))
+        {
+          args[2] = args[1];
+          args[1] = strcmp(args[0], "stop") ? "-SIGCONT" : "-SIGSTOP";
+          args[0] = "kill";
+          args[3] = NULL;
+        }
         if(fork() == 0)
         {
           if(pipe_ind != -1)
@@ -249,7 +264,7 @@ int main(void)
         }
       }
       strcpy(last_command, command);
-      saveCommand(command);
+      if(save_c) saveCommand(command);
       history = 1;
     }
     dup2(saved_out, 1);
